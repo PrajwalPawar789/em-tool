@@ -12,7 +12,7 @@ function EmailValidation() {
         setResult(null);
         setLoading(true);
         try {
-            const response = await axios.post('http://localhost:5000/validate-email', { email });
+            const response = await axios.post('http://localhost:5000/validate-email-single', { email });
             const { ValidateEmailInfo } = response.data;
 
             if (ValidateEmailInfo) {
@@ -28,7 +28,7 @@ function EmailValidation() {
     };
 
     return (
-        <div className="flex items-start justify-center min-h-screen bg-gray-100">
+        <div className="flex items-start justify-center ">
             <div className="mt-4 bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
                 <h1 className="text-2xl font-semibold mb-4 text-gray-800">Email Validation</h1>
                 <input
