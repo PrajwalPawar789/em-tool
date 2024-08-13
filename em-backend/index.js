@@ -3,15 +3,52 @@ const cors = require('cors');
 const multer = require('multer');
 const XLSX = require('xlsx');
 const axios = require('axios');
+const jwt = require('jsonwebtoken');
 
 const app = express();
 app.use(cors()); 
 app.use(express.json());
 
+const SECRET_KEY = "your_secret_key"; // Replace with a secure key
+
+// Dummy user data
+const dummyUser = {
+    username: "prajwal",
+    password: "123" // In production, never store passwords in plain text
+};
+
 // Configure multer for file uploads
 const upload = multer({ storage: multer.memoryStorage() });
 
 const PORT = 5000;
+
+// Login route
+app.post('/login', (req, res) => {
+    const { username, password } = req.body;
+    if (username === dummyUser.username && password === dummyUser.password) {
+        // Generate a token
+        const token = jwt.sign({ username }, SECRET_KEY, { expiresIn: '1h' });
+        res.json({ token });
+    } else {
+        res.status(401).json({ error: 'Invalid credentials' });
+    }
+});
+
+// Protected route (example)
+app.get('/protected', (req, res) => {
+    const token = req.headers['authorization'];
+    if (!token) {
+        return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    try {
+        const decoded = jwt.verify(token, SECRET_KEY);
+        res.json({ message: 'Protected data', user: decoded });
+    } catch (error) {
+        res.status(401).json({ error: 'Invalid token' });
+    }
+});
+
 
 // Existing endpoint for bulk validation
 app.post('/validate-emails', upload.single('file'), async (req, res) => {
@@ -56,6 +93,7 @@ app.post('/validate-emails', upload.single('file'), async (req, res) => {
 // New endpoint for single email validation
 app.post('/validate-email-single', async (req, res) => {
     const { email } = req.body;
+
     console.log('Received email:', email); // Log the received email
 
     if (!email) {
@@ -67,15 +105,16 @@ app.post('/validate-email-single', async (req, res) => {
     try {
         const response = await axios.get(apiUrl);
         const { ValidateEmailInfo } = response.data;
+
         if (ValidateEmailInfo) {
-            res.json({ ValidateEmailInfo });
+            return res.json({ ValidateEmailInfo });
         } else {
             console.error('Unexpected response:', response.data); // Log unexpected response
-            res.status(500).json({ error: 'Unexpected response from server' });
+            return res.status(500).json({ error: 'Unexpected response from server' });
         }
     } catch (error) {
         console.error('API call failed:', error.message); // Log API errors
-        res.status(500).json({ error: 'Failed to validate email' });
+        return res.status(500).json({ error: 'Failed to validate email' });
     }
 });
 
