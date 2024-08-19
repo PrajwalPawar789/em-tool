@@ -4,6 +4,15 @@ const multer = require('multer');
 const XLSX = require('xlsx');
 const axios = require('axios');
 const jwt = require('jsonwebtoken');
+const { Pool } = require('pg');
+
+const pool = new Pool({
+    user: 'prajwal.pawar',
+    host: '192.168.1.39',
+    database: 'LeadDB',
+    password: 'PPIndia@098',
+    port: 5432,
+});
 
 const app = express();
 app.use(cors()); 
@@ -11,25 +20,28 @@ app.use(express.json());
 
 const SECRET_KEY = "your_secret_key"; // Replace with a secure key
 
-// Dummy user data
-const dummyUser = {
-    username: "abhijeet",
-    password: "Abhi@123" // In production, never store passwords in plain text
-};
-
 // Configure multer for file uploads
 const upload = multer({ storage: multer.memoryStorage() });
 
 const PORT = 5001;
 
-// Login route
-app.post('/login', (req, res) => {
+app.post('/login', async (req, res) => {
     const { username, password } = req.body;
-    if (username === dummyUser.username && password === dummyUser.password) {
-        // Successful login
-        res.json({ message: 'Login successful' });
-    } else {
-        res.status(401).json({ error: 'Invalid credentials' });
+    try {
+        const result = await pool.query('SELECT * FROM users WHERE username = $1', [username]);
+        if (result.rows.length > 0) {
+            const user = result.rows[0];
+            if (user.password === password) {
+                const token = jwt.sign({ username: user.username }, SECRET_KEY, { expiresIn: '1h' });
+                res.json({ token }); // Send token
+            } else {
+                res.status(401).json({ error: 'Invalid credentials' });
+            }
+        } else {
+            res.status(401).json({ error: 'Invalid credentials' });
+        }
+    } catch (error) {
+        res.status(500).json({ error: 'Server error' });
     }
 });
 
