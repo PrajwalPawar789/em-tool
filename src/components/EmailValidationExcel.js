@@ -28,7 +28,7 @@ function EmailValidationExcel() {
         formData.append('file', currentFile);
 
         try {
-            const response = await axios.post('http://localhost:5001/validate-emails', formData, {
+            const response = await axios.post('http://192.168.1.36:5001/validate-emails', formData, {
                 headers: {
                     'Content-Type': 'multipart/form-data',
                 },

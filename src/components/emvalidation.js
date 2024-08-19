@@ -13,7 +13,7 @@ function EmailValidation() {
         setLoading(true);
 
         try {
-            const response = await axios.get('http://localhost:5001/validate-email-single', {
+            const response = await axios.get('http://192.168.1.36:5001/validate-email-single', {
                 params: {
                     email: email,
                     AllowCorrections: true,
