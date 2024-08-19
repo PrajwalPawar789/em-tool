@@ -11,11 +11,11 @@ app.use(express.json());
 
 const SECRET_KEY = "your_secret_key"; // Replace with a secure key
 
-// Dummy user data
-const dummyUser = {
-    username: "prajwal",
-    password: "123" // In production, never store passwords in plain text
-};
+// Login route
+const users = [
+    { username: 'prajwal', password: '123' },
+    { username: 'abhijeet', password: 'Abhi@123' }
+];
 
 // Configure multer for file uploads
 const upload = multer({ storage: multer.memoryStorage() });
@@ -25,7 +25,11 @@ const PORT = 5001;
 // Login route
 app.post('/login', (req, res) => {
     const { username, password } = req.body;
-    if (username === dummyUser.username && password === dummyUser.password) {
+    
+    // Find user by username
+    const user = users.find(user => user.username === username);
+    
+    if (user && user.password === password) {
         // Generate a token
         const token = jwt.sign({ username }, SECRET_KEY, { expiresIn: '1h' });
         res.json({ token });
@@ -33,7 +37,6 @@ app.post('/login', (req, res) => {
         res.status(401).json({ error: 'Invalid credentials' });
     }
 });
-
 // Protected route (example)
 app.get('/protected', (req, res) => {
     const token = req.headers['authorization'];
