@@ -13,7 +13,15 @@ function EmailValidation() {
         setLoading(true);
 
         try {
-            const response = await axios.post('http://localhost:5000/validate-email-single', { email });
+            const response = await axios.get('http://localhost:5001/validate-email-single', {
+                params: {
+                    email: email,
+                    AllowCorrections: true,
+                    Timeout: 200,
+                    LicenseKey: 'WS73-RYC3-ZFV2'
+                }
+            });
+
             const { ValidateEmailInfo } = response.data;
 
             if (ValidateEmailInfo) {

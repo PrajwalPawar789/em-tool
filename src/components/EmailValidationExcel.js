@@ -19,7 +19,7 @@ function EmailValidationExcel() {
             file: currentFile,
             loading: true,
             error: null,
-            progress: 0, // Initialize progress at 0%
+            progress: 0,
         };
 
         setProcesses((prevProcesses) => [...prevProcesses, newProcess]);
@@ -28,7 +28,7 @@ function EmailValidationExcel() {
         formData.append('file', currentFile);
 
         try {
-            const response = await axios.post('http://localhost:5000/validate-emails', formData, {
+            const response = await axios.post('http://localhost:5001/validate-emails', formData, {
                 headers: {
                     'Content-Type': 'multipart/form-data',
                 },

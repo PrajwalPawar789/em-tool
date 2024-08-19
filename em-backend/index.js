@@ -20,7 +20,7 @@ const dummyUser = {
 // Configure multer for file uploads
 const upload = multer({ storage: multer.memoryStorage() });
 
-const PORT = 5000;
+const PORT = 5001;
 
 // Login route
 app.post('/login', (req, res) => {
@@ -69,30 +69,47 @@ app.post('/validate-emails', upload.single('file'), async (req, res) => {
                 return { ...row, ValidationStatus: 'No Email ID Provided' };
             }
 
-            const apiUrl = `https://trial.serviceobjects.com/ev3/web.svc/json/ValidateEmailAddress?EmailAddress=${encodeURIComponent(EmailID)}&AllowCorrections=true&Timeout=5000&LicenseKey=WS73-ZGM1-JYF3`;
+            const apiUrl = `https://sws.serviceobjects.com/EV3/web.svc/JSON/ValidateEmailAddress?EmailAddress=${encodeURIComponent(EmailID)}&AllowCorrections=true&Timeout=200&LicenseKey=WS73-RYC3-ZFV2`;
 
             try {
                 const response = await axios.get(apiUrl);
                 const { ValidateEmailInfo } = response.data;
                 return {
                     ...row,
-                    ValidationStatus: ValidateEmailInfo.IsDeliverable === "true" ? 'Deliverable' : 'Not Deliverable',
-                    Score: ValidateEmailInfo.Score
+                    ValidationStatus: ValidateEmailInfo.IsDeliverable ? 'Deliverable' : 'Not Deliverable',
+                    Score: ValidateEmailInfo.Score,
+                    EmailAddressIn:ValidateEmailInfo.EmailAddressIn,
+                    EmailAddressOut:ValidateEmailInfo.EmailAddressOut,
+                    EmailCorrected:ValidateEmailInfo.EmailCorrected,
+                    Box:ValidateEmailInfo.Box,
+                    Domain:ValidateEmailInfo.Domain,
+                    TopLevelDomain:ValidateEmailInfo.TopLevelDomain,
+                    TopLevelDomainDescription:ValidateEmailInfo.TopLevelDomainDescription,
+                    IsSMTPServerGood:ValidateEmailInfo.IsSMTPServerGood,
+                    IsCatchAllDomain:ValidateEmailInfo.IsCatchAllDomain,
+                    IsSMTPMailBoxGood:ValidateEmailInfo.IsSMTPMailBoxGood,
+                    WarningCodes:ValidateEmailInfo.WarningCodes,
+                    WarningDescriptions:ValidateEmailInfo.WarningDescriptions,
+                    NotesCodes:ValidateEmailInfo.NotesCodes,
+                    NotesDescriptions:ValidateEmailInfo.NotesDescriptions,
+                    MXRecord:ValidateEmailInfo.MXRecord
+
                 };
             } catch (error) {
                 return { ...row, ValidationStatus: 'Validation Failed' };
             }
         }));
- 
+
         res.json({ validatedData });
     } catch (error) {
         res.status(500).json({ error: 'Failed to process file' });
     }
 });
 
+
 // New endpoint for single email validation
-app.post('/validate-email-single', async (req, res) => {
-    const { email } = req.body;
+app.get('/validate-email-single', async (req, res) => {
+    const { email } = req.query;
 
     console.log('Received email:', email); // Log the received email
 
@@ -100,10 +117,16 @@ app.post('/validate-email-single', async (req, res) => {
         return res.status(400).json({ error: 'No email provided' });
     }
 
-    const apiUrl = `https://trial.serviceobjects.com/ev3/web.svc/json/ValidateEmailAddress?EmailAddress=${encodeURIComponent(email)}&AllowCorrections=true&Timeout=5000&LicenseKey=WS73-ZGM1-JYF3`;
+    const apiUrl = `http://155.130.19.10/ev3/web.svc/json/ValidateEmailAddress`;
+    const params = {
+        EmailAddress: email,
+        AllowCorrections: true,
+        Timeout: 200,
+        LicenseKey: 'WS73-RYC3-ZFV2'
+    };
 
     try {
-        const response = await axios.get(apiUrl);
+        const response = await axios.get(apiUrl, { params });
         const { ValidateEmailInfo } = response.data;
 
         if (ValidateEmailInfo) {
