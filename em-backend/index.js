@@ -26,9 +26,8 @@ const PORT = 5001;
 app.post('/login', (req, res) => {
     const { username, password } = req.body;
     if (username === dummyUser.username && password === dummyUser.password) {
-        // Generate a token
-        const token = jwt.sign({ username }, SECRET_KEY, { expiresIn: '1h' });
-        res.json({ token });
+        // Successful login
+        res.json({ message: 'Login successful' });
     } else {
         res.status(401).json({ error: 'Invalid credentials' });
     }
@@ -36,17 +35,8 @@ app.post('/login', (req, res) => {
 
 // Protected route (example)
 app.get('/protected', (req, res) => {
-    const token = req.headers['authorization'];
-    if (!token) {
-        return res.status(401).json({ error: 'Unauthorized' });
-    }
-
-    try {
-        const decoded = jwt.verify(token, SECRET_KEY);
-        res.json({ message: 'Protected data', user: decoded });
-    } catch (error) {
-        res.status(401).json({ error: 'Invalid token' });
-    }
+    // This route is no longer using token authentication
+    res.json({ message: 'Protected data' });
 });
 
 
