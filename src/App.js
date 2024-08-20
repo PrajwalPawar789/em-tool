@@ -17,31 +17,31 @@ function App() {
           <Route
             path="/"
             element={
-              <>
+              <PrivateRoute>
                 <Navbar />
                 <Emvalidation />
                 <EmailValidationExcel />
-              </>
+              </PrivateRoute>
             }
           />
           <Route
             path="/feature"
             element={
               
-              <>
+              <PrivateRoute>
                 <Navbar />
                 <Feature />
-              </>
+              </PrivateRoute>
             }
           />
           <Route
             path="/support"
             element={
               
-              <>
+              <PrivateRoute>
                 <Navbar />
                 <Support/>
-              </>
+              </PrivateRoute>
             }
           />
         </Routes>
