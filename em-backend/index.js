@@ -113,32 +113,67 @@ app.post('/validate-emails', upload.single('file'), async (req, res) => {
 app.get('/validate-email-single', async (req, res) => {
     const { email } = req.query;
 
-    console.log('Received email:', email); // Log the received email
-
     if (!email) {
         return res.status(400).json({ error: 'No email provided' });
     }
 
-    const apiUrl = `http://155.130.19.10/ev3/web.svc/json/ValidateEmailAddress`;
-    const params = {
-        EmailAddress: email,
-        AllowCorrections: true,
-        Timeout: 200,
-        LicenseKey: 'WS73-RYC3-ZFV2'
-    };
-
     try {
-        const response = await axios.get(apiUrl, { params });
-        const { ValidateEmailInfo } = response.data;
+        // Check if the email is already in the database
+        const dbResult = await pool.query('SELECT * FROM email_validation WHERE email_address = $1', [email]);
 
-        if (ValidateEmailInfo) {
-            return res.json({ ValidateEmailInfo });
+        if (dbResult.rows.length > 0) {
+            // Email found in the database, return the stored result
+            return res.json({ ValidateEmailInfo: dbResult.rows[0] });
         } else {
-            console.error('Unexpected response:', response.data); // Log unexpected response
-            return res.status(500).json({ error: 'Unexpected response from server' });
+            // Email not found, make API call
+            const apiUrl = `http://155.130.19.10/ev3/web.svc/json/ValidateEmailAddress`;
+            const params = {
+                EmailAddress: email,
+                AllowCorrections: true,
+                Timeout: 200,
+                LicenseKey: 'WS73-RYC3-ZFV2'
+            };
+
+            const response = await axios.get(apiUrl, { params });
+            const { ValidateEmailInfo } = response.data;
+
+            if (ValidateEmailInfo) {
+                // Store the result in the database
+                await pool.query(
+                    `INSERT INTO email_validation (
+                        email_address, score, is_deliverable, email_corrected, box, domain,
+                        top_level_domain, top_level_domain_description, is_smtp_server_good,
+                        is_catch_all_domain, is_smtp_mailbox_good, warning_codes, warning_descriptions,
+                        notes_codes, notes_descriptions, mx_record
+                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)`,
+                    [
+                        ValidateEmailInfo.EmailAddressIn,
+                        ValidateEmailInfo.Score,
+                        ValidateEmailInfo.IsDeliverable,
+                        ValidateEmailInfo.EmailCorrected,
+                        ValidateEmailInfo.Box,
+                        ValidateEmailInfo.Domain,
+                        ValidateEmailInfo.TopLevelDomain,
+                        ValidateEmailInfo.TopLevelDomainDescription,
+                        ValidateEmailInfo.IsSMTPServerGood,
+                        ValidateEmailInfo.IsCatchAllDomain,
+                        ValidateEmailInfo.IsSMTPMailBoxGood,
+                        ValidateEmailInfo.WarningCodes,
+                        ValidateEmailInfo.WarningDescriptions,
+                        ValidateEmailInfo.NotesCodes,
+                        ValidateEmailInfo.NotesDescriptions,
+                        ValidateEmailInfo.MXRecord
+                    ]
+                );
+
+                // Return the API response
+                return res.json({ ValidateEmailInfo });
+            } else {
+                return res.status(500).json({ error: 'Unexpected response from server' });
+            }
         }
     } catch (error) {
-        console.error('API call failed:', error.message); // Log API errors
+        console.error('Error:', error.message);
         return res.status(500).json({ error: 'Failed to validate email' });
     }
 });
