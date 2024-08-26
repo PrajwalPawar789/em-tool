@@ -79,7 +79,6 @@ app.post('/validate-emails', upload.single('file'), async (req, res) => {
 
             if (dbResult.rows.length > 0) {
                 const dbData = dbResult.rows[0];
-                // If the data is recent enough (e.g., within 30 days), return the database result
                 const thirtyDaysAgo = new Date();
                 thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
@@ -111,6 +110,10 @@ app.post('/validate-emails', upload.single('file'), async (req, res) => {
             try {
                 const response = await axios.get(apiUrl);
                 const { ValidateEmailInfo } = response.data;
+
+                if (!ValidateEmailInfo) {
+                    throw new Error('Invalid API response structure');
+                }
 
                 // Store the result in the database
                 await pool.query(
@@ -180,15 +183,18 @@ app.post('/validate-emails', upload.single('file'), async (req, res) => {
                     MXRecord: ValidateEmailInfo.MXRecord,
                 };
             } catch (error) {
+                console.error(`Failed to validate email: ${email_address}`, error);
                 return { ...row, ValidationStatus: 'Validation Failed' };
             }
         }));
 
         res.json({ validatedData });
     } catch (error) {
+        console.error('Failed to process file', error);
         res.status(500).json({ error: 'Failed to process file' });
     }
 });
+
 
 // New endpoint for single email validation
 app.get('/validate-email-single', async (req, res) => {
