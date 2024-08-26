@@ -65,37 +65,119 @@ app.post('/validate-emails', upload.single('file'), async (req, res) => {
         const jsonData = XLSX.utils.sheet_to_json(worksheet);
 
         const validatedData = await Promise.all(jsonData.map(async (row) => {
-            const { EmailID } = row;
+            const { EmailID: email_address } = row;
 
-            if (!EmailID) {
+            if (!email_address) {
                 return { ...row, ValidationStatus: 'No Email ID Provided' };
             }
 
-            const apiUrl = `https://sws.serviceobjects.com/EV3/web.svc/JSON/ValidateEmailAddress?EmailAddress=${encodeURIComponent(EmailID)}&AllowCorrections=true&Timeout=200&LicenseKey=WS73-RYC3-ZFV2`;
+            // Check in-house database first
+            const dbResult = await pool.query(
+                'SELECT * FROM email_validation WHERE email_address = $1', 
+                [email_address]
+            );
+
+            if (dbResult.rows.length > 0) {
+                const dbData = dbResult.rows[0];
+                // If the data is recent enough (e.g., within 30 days), return the database result
+                const thirtyDaysAgo = new Date();
+                thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+                if (new Date(dbData.created_at) > thirtyDaysAgo) {
+                    return {
+                        ...row,
+                        ValidationStatus: dbData.is_deliverable,
+                        Score: dbData.score,
+                        EmailCorrected: dbData.email_corrected,
+                        Box: dbData.box,
+                        Domain: dbData.domain,
+                        TopLevelDomain: dbData.top_level_domain,
+                        TopLevelDomainDescription: dbData.top_level_domain_description,
+                        IsSMTPServerGood: dbData.is_smtp_server_good,
+                        IsCatchAllDomain: dbData.is_catch_all_domain,
+                        IsSMTPMailBoxGood: dbData.is_smtp_mailbox_good,
+                        WarningCodes: dbData.warning_codes,
+                        WarningDescriptions: dbData.warning_descriptions,
+                        NotesCodes: dbData.notes_codes,
+                        NotesDescriptions: dbData.notes_descriptions,
+                        MXRecord: dbData.mx_record,
+                    };
+                }
+            }
+
+            // If not in database or outdated, make API call
+            const apiUrl = `https://sws.serviceobjects.com/EV3/web.svc/JSON/ValidateEmailAddress?EmailAddress=${encodeURIComponent(email_address)}&AllowCorrections=true&Timeout=200&LicenseKey=WS73-RYC3-ZFV2`;
 
             try {
                 const response = await axios.get(apiUrl);
                 const { ValidateEmailInfo } = response.data;
+
+                // Store the result in the database
+                await pool.query(
+                    `INSERT INTO email_validation (
+                        email_address, score, is_deliverable, email_corrected, box, 
+                        domain, top_level_domain, top_level_domain_description, 
+                        is_smtp_server_good, is_catch_all_domain, is_smtp_mailbox_good, 
+                        warning_codes, warning_descriptions, notes_codes, notes_descriptions, 
+                        mx_record, created_at
+                    ) VALUES (
+                        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, CURRENT_TIMESTAMP
+                    )
+                    ON CONFLICT (email_address) 
+                    DO UPDATE SET 
+                        score = EXCLUDED.score, 
+                        is_deliverable = EXCLUDED.is_deliverable, 
+                        email_corrected = EXCLUDED.email_corrected, 
+                        box = EXCLUDED.box, 
+                        domain = EXCLUDED.domain, 
+                        top_level_domain = EXCLUDED.top_level_domain, 
+                        top_level_domain_description = EXCLUDED.top_level_domain_description, 
+                        is_smtp_server_good = EXCLUDED.is_smtp_server_good, 
+                        is_catch_all_domain = EXCLUDED.is_catch_all_domain, 
+                        is_smtp_mailbox_good = EXCLUDED.is_smtp_mailbox_good, 
+                        warning_codes = EXCLUDED.warning_codes, 
+                        warning_descriptions = EXCLUDED.warning_descriptions, 
+                        notes_codes = EXCLUDED.notes_codes, 
+                        notes_descriptions = EXCLUDED.notes_descriptions, 
+                        mx_record = EXCLUDED.mx_record, 
+                        created_at = CURRENT_TIMESTAMP`,
+                    [
+                        email_address, 
+                        ValidateEmailInfo.Score, 
+                        ValidateEmailInfo.IsDeliverable, 
+                        ValidateEmailInfo.EmailCorrected, 
+                        ValidateEmailInfo.Box,
+                        ValidateEmailInfo.Domain, 
+                        ValidateEmailInfo.TopLevelDomain, 
+                        ValidateEmailInfo.TopLevelDomainDescription,
+                        ValidateEmailInfo.IsSMTPServerGood, 
+                        ValidateEmailInfo.IsCatchAllDomain, 
+                        ValidateEmailInfo.IsSMTPMailBoxGood,
+                        ValidateEmailInfo.WarningCodes, 
+                        ValidateEmailInfo.WarningDescriptions, 
+                        ValidateEmailInfo.NotesCodes,
+                        ValidateEmailInfo.NotesDescriptions, 
+                        ValidateEmailInfo.MXRecord
+                    ]
+                );
+
                 return {
                     ...row,
-                    ValidationStatus: ValidateEmailInfo.IsDeliverable ? 'Deliverable' : 'Not Deliverable',
+                    ValidationStatus: ValidateEmailInfo.IsDeliverable,
                     Score: ValidateEmailInfo.Score,
-                    EmailAddressIn:ValidateEmailInfo.EmailAddressIn,
-                    EmailAddressOut:ValidateEmailInfo.EmailAddressOut,
-                    EmailCorrected:ValidateEmailInfo.EmailCorrected,
-                    Box:ValidateEmailInfo.Box,
-                    Domain:ValidateEmailInfo.Domain,
-                    TopLevelDomain:ValidateEmailInfo.TopLevelDomain,
-                    TopLevelDomainDescription:ValidateEmailInfo.TopLevelDomainDescription,
-                    IsSMTPServerGood:ValidateEmailInfo.IsSMTPServerGood,
-                    IsCatchAllDomain:ValidateEmailInfo.IsCatchAllDomain,
-                    IsSMTPMailBoxGood:ValidateEmailInfo.IsSMTPMailBoxGood,
-                    WarningCodes:ValidateEmailInfo.WarningCodes,
-                    WarningDescriptions:ValidateEmailInfo.WarningDescriptions,
-                    NotesCodes:ValidateEmailInfo.NotesCodes,
-                    NotesDescriptions:ValidateEmailInfo.NotesDescriptions,
-                    MXRecord:ValidateEmailInfo.MXRecord
-
+                    EmailCorrected: ValidateEmailInfo.EmailCorrected,
+                    Box: ValidateEmailInfo.Box,
+                    Domain: ValidateEmailInfo.Domain,
+                    TopLevelDomain: ValidateEmailInfo.TopLevelDomain,
+                    TopLevelDomainDescription: ValidateEmailInfo.TopLevelDomainDescription,
+                    IsSMTPServerGood: ValidateEmailInfo.IsSMTPServerGood,
+                    IsCatchAllDomain: ValidateEmailInfo.IsCatchAllDomain,
+                    IsSMTPMailBoxGood: ValidateEmailInfo.IsSMTPMailBoxGood,
+                    WarningCodes: ValidateEmailInfo.WarningCodes,
+                    WarningDescriptions: ValidateEmailInfo.WarningDescriptions,
+                    NotesCodes: ValidateEmailInfo.NotesCodes,
+                    NotesDescriptions: ValidateEmailInfo.NotesDescriptions,
+                    MXRecord: ValidateEmailInfo.MXRecord,
                 };
             } catch (error) {
                 return { ...row, ValidationStatus: 'Validation Failed' };
@@ -107,7 +189,6 @@ app.post('/validate-emails', upload.single('file'), async (req, res) => {
         res.status(500).json({ error: 'Failed to process file' });
     }
 });
-
 
 // New endpoint for single email validation
 app.get('/validate-email-single', async (req, res) => {
