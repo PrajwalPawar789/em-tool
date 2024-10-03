@@ -105,7 +105,7 @@ app.post('/validate-emails', upload.single('file'), async (req, res) => {
             }
 
             // If not in database or outdated, make API call
-            const apiUrl = `https://sws.serviceobjects.com/EV3/web.svc/JSON/ValidateEmailAddress?EmailAddress=${encodeURIComponent(email_address)}&AllowCorrections=true&Timeout=200&LicenseKey=WS73-RYC3-ZFV2`;
+            const apiUrl = `https://sws.serviceobjects.com/EV3/web.svc/JSON/ValidateEmailAddress?EmailAddress=${encodeURIComponent(email_address)}&AllowCorrections=true&Timeout=2000&LicenseKey=WS73-RYC3-ZFV2`;
 
             try {
                 const response = await axios.get(apiUrl);
@@ -217,7 +217,7 @@ app.get('/validate-email-single', async (req, res) => {
             const params = {
                 EmailAddress: email,
                 AllowCorrections: true,
-                Timeout: 200,
+                Timeout: 2000,
                 LicenseKey: 'WS73-RYC3-ZFV2'
             };
 

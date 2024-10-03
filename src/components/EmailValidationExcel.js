@@ -14,45 +14,37 @@ function EmailValidationExcel() {
         if (!currentFile) {
             return;
         }
-
+    
         const newProcess = {
             file: currentFile,
             loading: true,
             error: null,
-            progress: 0,
         };
-
+    
         setProcesses((prevProcesses) => [...prevProcesses, newProcess]);
-
+    
         const formData = new FormData();
         formData.append('file', currentFile);
-
+    
         try {
-            const response = await axios.post('http://192.168.1.36:5001/validate-emails', formData, {
+            const response = await axios.post('http://localhost:5001/validate-emails', formData, {
                 headers: {
                     'Content-Type': 'multipart/form-data',
                 },
                 onUploadProgress: (progressEvent) => {
-                    const progress = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-                    setProcesses((prevProcesses) =>
-                        prevProcesses.map((process) =>
-                            process.file === currentFile
-                                ? { ...process, progress }
-                                : process
-                        )
-                    );
+                    // You can keep track of upload progress if needed.
                 },
             });
-
+    
             const { validatedData } = response.data;
-
+    
             const newWorkbook = XLSX.utils.book_new();
             const newWorksheet = XLSX.utils.json_to_sheet(validatedData);
             XLSX.utils.book_append_sheet(newWorkbook, newWorksheet, 'Validated Emails');
-
+    
             // Trigger download
             XLSX.writeFile(newWorkbook, `validated_${currentFile.name}`);
-
+    
             setProcesses((prevProcesses) =>
                 prevProcesses.map((process) =>
                     process.file === currentFile
@@ -72,6 +64,7 @@ function EmailValidationExcel() {
             setCurrentFile(null); // Clear the selected file after processing
         }
     };
+    
 
     return (
         <div className="flex flex-col items-center justify-center">
@@ -96,13 +89,10 @@ function EmailValidationExcel() {
                     <div key={index} className="bg-white p-6 rounded-lg shadow-lg">
                         <h2 className="text-lg font-semibold text-gray-800">{process.file.name}</h2>
                         {process.loading && (
-                            <div className="w-full bg-gray-200 rounded-full h-4 mt-4">
-                                <div
-                                    className="bg-blue-600 h-full text-center text-white text-sm rounded-full"
-                                    style={{ width: `${process.progress}%` }}
-                                >
-                                    {process.progress}%
-                                </div>
+                            <div className="flex justify-center items-center mt-4">
+                                {/* Loader Spinner */}
+                                <div className="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-8 w-8"></div>
+                                <span className="ml-4 text-gray-600">Processing...</span>
                             </div>
                         )}
                         {process.error && (
