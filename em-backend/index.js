@@ -51,6 +51,27 @@ app.get('/protected', (req, res) => {
     res.json({ message: 'Protected data' });
 });
 
+// Analytics route
+app.get('/analytics', async (req, res) => {
+    try {
+        const query = `
+            SELECT
+                COUNT(*) AS total_email_credits_used,
+                SUM(CASE WHEN is_deliverable = 'true' THEN 1 ELSE 0 END) AS deliverable_count,
+                SUM(CASE WHEN is_deliverable = 'false' THEN 1 ELSE 0 END) AS undeliverable_count,
+                SUM(CASE WHEN is_deliverable = 'unknown' THEN 1 ELSE 0 END) AS unknown_count,
+                COUNT(CASE WHEN created_at::date = CURRENT_DATE THEN 1 END) AS used_today
+            FROM
+                public.email_validation;
+        `;
+        
+        const result = await pool.query(query);
+        res.json(result.rows[0]); // Send the first row of results as JSON
+    } catch (error) {
+        console.error('Error executing query', error.stack);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
 
 // Existing endpoint for bulk validation
 app.post('/validate-emails', upload.single('file'), async (req, res) => {
